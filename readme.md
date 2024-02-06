@@ -32,3 +32,4 @@
 | 5/2-2024 | Kenan | 2            | Assembled 70% of the drone (Three motors & ESC-s did not arrive)|
 | 5/2-2024 | Kenan | 1            | Made a github repo and started documenting readme|
 | 5/2-2024 | Kenan | 1            | Made some small progress on the web interface of the controller pico|
+| 5/2-2024 | Kenan | 1            | Web joystick now fully works! Need to implement a 2nd one.|
