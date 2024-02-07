@@ -24,12 +24,13 @@
 
 ## Work progress
 
-| Date       | Team Member | Hours Worked | Task                           |
+| Date(dd/mm/year)| Team Member | Hours Worked | Task                           |
 |------------|-------------|--------------|--------------------------------|
-| 1/2-2024 | Kenan        | 4            | Researched about drones|
-| 2/2-2024 | Kenan        | 4            | Even more research about what to buy |
-| 2/2-2024 | Kenan & Charbel        | 2            | Ordering parts for the drone|
-| 5/2-2024 | Kenan | 2            | Assembled 70% of the drone (Three motors & ESC-s did not arrive)|
-| 5/2-2024 | Kenan | 1            | Made a github repo and started documenting readme|
-| 5/2-2024 | Kenan | 1            | Made some small progress on the web interface of the controller pico|
-| 5/2-2024 | Kenan | 1            | Web joystick now fully works! Need to implement a 2nd one.|
+| 01/02-2024 | Kenan        | 4            | Researched about drones|
+| 02/02-2024 | Kenan        | 4            | Even more research about what to buy |
+| 02/02-2024 | Kenan & Charbel        | 2            | Ordering parts for the drone|
+| 05/02-2024 | Kenan | 2            | Assembled 70% of the drone (Three motors & ESC-s did not arrive)|
+| 05/02-2024 | Kenan | 1            | Made a github repo and started documenting readme|
+| 05/02-2024 | Kenan | 1            | Made some small progress on the web interface of the controller pico|
+| 05/02-2024 | Kenan | 1            | Web joystick now fully works! Need to implement a 2nd one.|
+| 05/02-2024 | Charbel | 2            | Implemented second joystick and fixed y value for the first one|
