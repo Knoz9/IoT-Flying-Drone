@@ -34,3 +34,4 @@
 | 05/02-2024 | Kenan | 1            | Made some small progress on the web interface of the controller pico|
 | 05/02-2024 | Kenan | 1            | Web joystick now fully works! Need to implement a 2nd one.|
 | 07/02-2024 | Charbel | 2            | Implemented second joystick and fixed y value for the first one|
+| 07/02-2024 | Kenan & Charbel | 1            | Added multitouch support and combined both of the joysticks values to one single fetch request |

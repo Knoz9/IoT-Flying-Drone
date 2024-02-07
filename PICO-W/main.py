@@ -6,11 +6,12 @@ ap.config(essid='Pico-Drone', password='123456789')
 ap.active(True)
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind(('', 80)) 
-s.listen(5) 
+s.bind(('', 80))
+s.listen(5)
 
 print('Access Point Started')
 print('Network Name (SSID):', ap.config('essid'))
+
 def parse_query_params(query):
     """Parse query parameters from the URL."""
     params = {}
@@ -28,133 +29,138 @@ while True:
     
     if path == '/position':
         params = parse_query_params(query)
-        if 'y' in params:
-            percentage = params['y']
-            print(f'Vertical Position: {percentage}%')
-        else:
-            print('Y position not found')
+        # Now expecting x1, y1 for joystick1 and x2, y2 for joystick2
+        x1 = params.get('x1', '0')  # Default to 0 if not provided
+        y1 = params.get('y1', '0')  # Default to 0 if not provided
+        x2 = params.get('x2', '0')  # Default to 0 if not provided
+        y2 = params.get('y2', '0')  # Default to 0 if not provided
+        print(f'Joystick 1 Position: X={x1}%, Y={y1}% | Joystick 2 Position: X={x2}%, Y={y2}%')
     else:
         print('Unknown Command')
 
-    
-    
+    # HTML with two independent joysticks
     html = """<!DOCTYPE html>
 <html>
 <head>
     <title>Pico Joystick Controller</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="path/to/icon.png">
+    <meta name="apple-mobile-web-app-title" content="Pico Joystick">
     <style>
         body, html {
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Disable scrolling */
+            overflow: hidden;
             height: 100%;
             display: flex;
-            justify-content: center;
+            justify-content: space-around;
             align-items: center;
             background-color: #f0f0f0;
         }
-        body, html {
-        height: 100vh; /* Use viewport height */
-        max-height: 100vh; /* Prevent extending beyond the viewport height */
-        }
-        body, html {
-        width: 100vw; /* Viewport width to ensure full width is covered */
-        overflow-x: hidden; /* Specifically disable horizontal scrolling */
-        }
-
-
-        #joystick {
+        .joystick {
             width: 100px;
             height: 100px;
             background-color: #ddd;
             border-radius: 50%;
-            position: absolute; /* Use absolute positioning within the flex container */
+            position: relative;
+            margin-bottom: -150px;
         }
-        #handle {
+        .handle {
             width: 50px;
             height: 50px;
             background-color: #bbb;
             border-radius: 50%;
             position: absolute;
-            top: 50px; left: 25px; /* Centered within joystick */
-            touch-action: none; /* Prevent the browser from handling touch actions */
+            top: 25px; left: 25px;
+            touch-action: none;
+        }
+        .spacer {
+            width: 60vw; /* Width of the spacer to control the space between joysticks */
+            height: 100%; /* Match the parent's height */
+            /* No background color needed as it's an invisible spacer */
         }
     </style>
 </head>
 <body>
-    <div id="joystick">
-        <div id="handle"></div>
+    <div class="joystick" id="joystick1">
+        <div class="handle"></div>
     </div>
-   <script>
-    const joystick = document.getElementById('joystick');
-    const handle = document.getElementById('handle');
-    let active = false;
-    let currentYPercentage = 0; // Assume starting at the middle (50%)
-    let intervalId = null;
+    <div class="spacer"></div> <!-- Invisible spacer element -->
+    <div class="joystick" id="joystick2">
+        <div class="handle"></div>
+    </div>
+<script>
+let joystickPositions = {
+    joystick1: { x: 50, y: 50 },
+    joystick2: { x: 50, y: 50 }
+};
+let updateInterval;
 
-    function moveHandle(e) {
-        e.preventDefault(); // Prevent default behavior for all events
-        let event = e.type.includes('touch') ? e.touches[0] : e;
-        let rect = joystick.getBoundingClientRect();
-        let clientY = event.clientY - rect.top;
+function initJoystick(joystickId) {
+    const joystick = document.getElementById(joystickId);
+    const handle = joystick.querySelector('.handle');
 
-        // Ensure the handle stays within the joystick's vertical bounds
-        let handleTopMin = 0;
-        let handleTopMax = rect.height - handle.offsetHeight;
-        let handleY = Math.max(Math.min(clientY - (handle.offsetHeight / 2), handleTopMax), handleTopMin);
+    function moveHandle(event, touchId) {
+        const touch = Array.from(event.changedTouches).find(t => t.identifier === touchId);
+        if (!touch) return;
 
-        // Calculate the percentage position of the handle
-        currentYPercentage = 100 - ((handleY / handleTopMax) * 100);
+        const rect = joystick.getBoundingClientRect();
+        const clientX = touch.clientX - rect.left;
+        const clientY = touch.clientY - rect.top;
+        const maxX = rect.width - handle.offsetWidth;
+        const maxY = rect.height - handle.offsetHeight;
+        const handleX = Math.max(Math.min(clientX - (handle.offsetWidth / 2), maxX), 0);
+        const handleY = Math.max(Math.min(clientY - (handle.offsetHeight / 2), maxY), 0);
+        joystickPositions[joystickId].x = (handleX / maxX) * 100;
+        joystickPositions[joystickId].y = (handleY / maxY) * 100;
+
+        handle.style.left = `${handleX}px`;
         handle.style.top = `${handleY}px`;
     }
 
-    function updatePosition() {
-        // Send the vertical position as a percentage, rounded to nearest integer
-        sendPosition(Math.round(currentYPercentage));
-    }
+    joystick.addEventListener('touchstart', (e) => {
+        Array.from(e.changedTouches).forEach(touch => {
+            moveHandle(e, touch.identifier);
+        });
+    }, {passive: false});
 
-    function sendPosition(y) {
-        console.log(`Vertical Position: ${y}%`); // For debugging
-        fetch(`/position?y=${y}`).catch(console.error);
-    }
+    joystick.addEventListener('touchmove', (e) => {
+        Array.from(e.changedTouches).forEach(touch => {
+            moveHandle(e, touch.identifier);
+        });
+    }, {passive: false});
 
-    // Initialize periodic updates
-    function startPeriodicUpdates() {
-        if (!intervalId) {
-            intervalId = setInterval(updatePosition, 400); // Update position every 1 second
-        }
-    }
+    joystick.addEventListener('touchend', (e) => {
+        // Touch end logic if needed
+    });
+}
 
-    function stopPeriodicUpdates() {
-        if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-        }
-    }
+function startSendingPositions() {
+    if (updateInterval) clearInterval(updateInterval);
+    updateInterval = setInterval(sendPositions, 500);
+}
 
-    // Event listeners to handle drag/move
-    joystick.addEventListener('mousedown', (e) => { active = true; moveHandle(e); startPeriodicUpdates(); });
-    joystick.addEventListener('touchstart', (e) => { active = true; moveHandle(e); startPeriodicUpdates(); }, {passive: false});
+function sendPositions() {
+    const { joystick1, joystick2 } = joystickPositions;
+    console.log(`Joystick 1 Position: X=${joystick1.x}%, Y=${joystick1.y}% | Joystick 2 Position: X=${joystick2.x}%, Y=${joystick2.y}%`);
+    fetch(`/position?x1=${joystick1.x}&y1=${joystick1.y}&x2=${joystick2.x}&y2=${joystick2.y}`)
+        .catch(console.error);
+}
 
-    document.addEventListener('mousemove', (e) => { if (active) moveHandle(e); });
-    document.addEventListener('touchmove', (e) => { if (active) moveHandle(e); }, {passive: false});
-
-    // Event listeners to stop moving the handle and updates
-    document.addEventListener('mouseup', () => { active = false; });
-    document.addEventListener('touchend', () => { active = false; });
-
-    // Start periodic updates by default in case the joystick is not moved after page load
-    startPeriodicUpdates();
+// Initialize both joysticks and start sending positions
+initJoystick('joystick1');
+initJoystick('joystick2');
+startSendingPositions();
 </script>
-
-
 </body>
 </html>
 
 """
 
-    
     response = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n" + html
     conn.sendall(response.encode('utf-8'))  # Send the response
     conn.close()  # Close the connection
+
+
