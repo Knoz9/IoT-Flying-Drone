@@ -78,68 +78,81 @@ while True:
     <div class="joystick" id="joystick2">
         <div class="handle"></div>
     </div>
-    <script>
-        // Function to initialize a joystick
-        function initJoystick(joystickId) {
-            const joystick = document.getElementById(joystickId);
-            const handle = joystick.querySelector('.handle');
-            let active = false;
-            let currentXPercentage = 50; // Start in the middle
-            let currentYPercentage = 50; // Start in the middle
-            let intervalId = null;
+<script>
+// Function to initialize a joystick
+function initJoystick(joystickId) {
+    const joystick = document.getElementById(joystickId);
+    const handle = joystick.querySelector('.handle');
+    let active = false;
+    let currentXPercentage = 50; // Start in the middle for joystick2
+    let currentYPercentage = 50; // Start in the middle
+    let intervalId = null;
 
-            function moveHandle(e) {
-                e.preventDefault();
-                let event = e.type.includes('touch') ? e.touches[0] : e;
-                let rect = joystick.getBoundingClientRect();
-                let clientX = event.clientX - rect.left;
-                let clientY = event.clientY - rect.top;
-                
-                // Ensure the handle stays within the joystick's bounds
-                let max = rect.width - handle.offsetWidth;
-                let handleX = Math.max(Math.min(clientX - (handle.offsetWidth / 2), max), 0);
-                let handleY = Math.max(Math.min(clientY - (handle.offsetHeight / 2), max), 0);
-                
-                currentXPercentage = (handleX / max) * 100;
-                currentYPercentage = (handleY / max) * 100;
-                handle.style.left = `${handleX}px`;
-                handle.style.top = `${handleY}px`;
-            }
-
-            function updatePosition() {
-                sendPosition(Math.round(currentXPercentage), Math.round(currentYPercentage));
-            }
-
-            function sendPosition(x, y) {
-                console.log(`Joystick ${joystickId} Position: X=${x}%, Y=${y}%`);
-                fetch(`/position?id=${joystickId}&x=${x}&y=${y}`).catch(console.error);
-            }
-
-            joystick.addEventListener('mousedown', (e) => { active = true; moveHandle(e); startPeriodicUpdates(); });
-            joystick.addEventListener('touchstart', (e) => { active = true; moveHandle(e); startPeriodicUpdates(); }, {passive: false});
-            document.addEventListener('mousemove', (e) => { if (active) moveHandle(e); });
-            document.addEventListener('touchmove', (e) => { if (active) moveHandle(e); }, {passive: false});
-            document.addEventListener('mouseup', () => { active = false; stopPeriodicUpdates(); });
-            document.addEventListener('touchend', () => { active = false; stopPeriodicUpdates(); });
-
-            function startPeriodicUpdates() {
-                if (!intervalId) {
-                    intervalId = setInterval(updatePosition, 400);
-                }
-            }
-
-            function stopPeriodicUpdates() {
-                if (intervalId) {
-                    clearInterval(intervalId);
-                    intervalId = null;
-                }
-            }
+    function moveHandle(e) {
+        e.preventDefault();
+        let event = e.type.includes('touch') ? e.touches[0] : e;
+        let rect = joystick.getBoundingClientRect();
+        let clientY = event.clientY - rect.top;
+        
+        // Ensure the handle stays within the joystick's bounds
+        let maxY = rect.height - handle.offsetHeight;
+        let handleY = Math.max(Math.min(clientY - (handle.offsetHeight / 2), maxY), 0);
+        
+        if (joystickId === 'joystick1') {
+            // Reverse Y percentage calculation for joystick1
+            currentYPercentage = 100 - ((handleY / maxY) * 100);
+            handle.style.top = `${handleY}px`;
+            handle.style.left = `${(rect.width - handle.offsetWidth) / 2}px`; // Keep centered horizontally
+        } else {
+            // Allow free movement for joystick2
+            let clientX = event.clientX - rect.left;
+            let maxX = rect.width - handle.offsetWidth;
+            let handleX = Math.max(Math.min(clientX - (handle.offsetWidth / 2), maxX), 0);
+            currentXPercentage = (handleX / maxX) * 100;
+            currentYPercentage = ((maxY - handleY) / maxY) * 100; // Maintain original Y calculation for joystick2
+            handle.style.left = `${handleX}px`;
+            handle.style.top = `${handleY}px`;
         }
+    }
 
-        // Initialize both joysticks
-        initJoystick('joystick1');
-        initJoystick('joystick2');
-    </script>
+    function updatePosition() {
+        // Send position updates; no changes needed here as adjustments are made above
+        sendPosition(joystickId === 'joystick2' ? Math.round(currentXPercentage) : 0, Math.round(currentYPercentage));
+    }
+
+    function sendPosition(x, y) {
+        console.log(`Joystick ${joystickId} Position: X=${x}%, Y=${y}%`);
+        fetch(`/position?id=${joystickId}&x=${x}&y=${y}`).catch(console.error);
+    }
+
+    // Event listeners setup remains unchanged
+    joystick.addEventListener('mousedown', (e) => { active = true; moveHandle(e); startPeriodicUpdates(); });
+    joystick.addEventListener('touchstart', (e) => { active = true; moveHandle(e); startPeriodicUpdates(); }, {passive: false});
+    document.addEventListener('mousemove', (e) => { if (active) moveHandle(e); });
+    document.addEventListener('touchmove', (e) => { if (active) moveHandle(e); }, {passive: false});
+    document.addEventListener('mouseup', () => { active = false; stopPeriodicUpdates(); });
+    document.addEventListener('touchend', () => { active = false; stopPeriodicUpdates(); });
+
+    function startPeriodicUpdates() {
+        if (!intervalId) {
+            intervalId = setInterval(updatePosition, 400);
+        }
+    }
+
+    function stopPeriodicUpdates() {
+        if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+        }
+    }
+}
+
+// Initialize both joysticks
+initJoystick('joystick1');
+initJoystick('joystick2');
+</script>
+
+
 </body>
 </html>
 """
