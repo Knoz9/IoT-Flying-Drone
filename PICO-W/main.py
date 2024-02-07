@@ -1,5 +1,16 @@
 import socket
 import network
+import machine
+import time
+
+# Setup for onboard LED
+led = machine.Pin(21, machine.Pin.OUT)
+
+def blink_led(duration=0.1):
+    """Toggle the LED to blink."""
+    led.value(1)  # Turn LED on
+    time.sleep(duration)  # Wait for the duration
+    led.value(0)  # Turn LED off
 
 ap = network.WLAN(network.AP_IF)
 ap.config(essid='Pico-Drone', password='123456789')
@@ -37,6 +48,7 @@ while True:
                 y1 = params.get('y1', '0')
                 x2 = params.get('x2', '0')
                 y2 = params.get('y2', '0')
+                blink_led()
                 print(f'Joystick 1 Position: X={x1}, Y={y1} | Joystick 2 Position: X={x2}, Y={y2}')
             else:
                 print('Unknown Command')
@@ -95,77 +107,92 @@ while True:
         <div class="handle"></div>
     </div>
     <script>
-        let joystickPositions = {
-            joystick1: { x: 1500, y: 1500 }, // Initialize with starting values of 1500
-            joystick2: { x: 1500, y: 1500 },
-        };
-        let updateInterval;
-        
-        function initJoystick(joystickId) {
-            const joystick = document.getElementById(joystickId);
-            const handle = joystick.querySelector('.handle');
-        
-            function mapValue(percentage, min, max) {
-                return min + (max - min) * (percentage / 100);
-            }
-        
-            function moveHandle(event, touchId) {
-                const touch = Array.from(event.changedTouches).find(t => t.identifier === touchId);
-                if (!touch) return;
-        
-                const rect = joystick.getBoundingClientRect();
-                const clientX = touch.clientX - rect.left;
-                const clientY = touch.clientY - rect.top;
-                const maxX = rect.width - handle.offsetWidth;
-                const maxY = rect.height - handle.offsetHeight;
-                const handleX = Math.max(Math.min(clientX - (handle.offsetWidth / 2), maxX), 0);
-                const handleY = Math.max(Math.min(clientY - (handle.offsetHeight / 2), maxY), 0);
-                const xPercentage = (handleX / maxX) * 100;
-                const yPercentage = (handleY / maxY) * 100;
-        
-                // Map the percentage to the desired range
-                joystickPositions[joystickId].x = mapValue(xPercentage, 1000, 2000);
-                joystickPositions[joystickId].y = mapValue(yPercentage, 1000, 2000);
-        
-                handle.style.left = `${handleX}px`;
-                handle.style.top = `${handleY}px`;
-            }
-        
-            joystick.addEventListener('touchstart', (e) => {
-                Array.from(e.changedTouches).forEach(touch => {
-                    moveHandle(e, touch.identifier);
-                });
-            }, {passive: false});
-        
-            joystick.addEventListener('touchmove', (e) => {
-                Array.from(e.changedTouches).forEach(touch => {
-                    moveHandle(e, touch.identifier);
-                });
-            }, {passive: false});
-        
-            joystick.addEventListener('touchend', (e) => {
-                // Touch end logic if needed
-            });
-        }
-        
-        function startSendingPositions() {
-            if (updateInterval) clearInterval(updateInterval);
-            updateInterval = setInterval(sendPositions, 500);
-        }
-        
-        function sendPositions() {
-            const { joystick1, joystick2 } = joystickPositions;
-            console.log(`Joystick 1 Position: X=${Math.round(joystick1.x)}, Y=${Math.round(joystick1.y)} | Joystick 2 Position: X=${Math.round(joystick2.x)}, Y=${Math.round(joystick2.y)}`);
-            // Update the fetch URL to include the rounded values
-            fetch(`/position?x1=${Math.round(joystick1.x)}&y1=${Math.round(joystick1.y)}&x2=${Math.round(joystick2.x)}&y2=${Math.round(joystick2.y)}`)
-                .catch(console.error);
-        }
-        
-        // Initialize both joysticks and start sending positions
-        initJoystick('joystick1');
-        initJoystick('joystick2');
-        startSendingPositions();
-        </script>        
+let joystickPositions = {
+    joystick1: { x: 1500, y: 1500 }, // Initialize with default middle values
+    joystick2: { x: 1500, y: 1500 },
+};
+let previousPositions = JSON.parse(JSON.stringify(joystickPositions)); // To compare changes
+let updateInterval;
+
+function initJoystick(joystickId) {
+    const joystick = document.getElementById(joystickId);
+    const handle = joystick.querySelector('.handle');
+
+    function mapValue(percentage, min, max) {
+        return min + (max - min) * (percentage / 100);
+    }
+
+    function moveHandle(event, touchId) {
+        const touch = Array.from(event.changedTouches).find(t => t.identifier === touchId);
+        if (!touch) return;
+
+        const rect = joystick.getBoundingClientRect();
+        const clientX = touch.clientX - rect.left;
+        const clientY = touch.clientY - rect.top;
+        const maxX = rect.width - handle.offsetWidth;
+        const maxY = rect.height - handle.offsetHeight;
+        const handleX = Math.max(Math.min(clientX - (handle.offsetWidth / 2), maxX), 0);
+        const handleY = Math.max(Math.min(clientY - (handle.offsetHeight / 2), maxY), 0);
+        const xPercentage = (handleX / maxX) * 100;
+        const yPercentage = (handleY / maxY) * 100;
+
+        // Map the percentage to the desired range
+        joystickPositions[joystickId].x = mapValue(xPercentage, 1000, 2000);
+        joystickPositions[joystickId].y = mapValue(yPercentage, 1000, 2000);
+
+        handle.style.left = `${handleX}px`;
+        handle.style.top = `${handleY}px`;
+    }
+
+    joystick.addEventListener('touchstart', (e) => {
+        Array.from(e.changedTouches).forEach(touch => {
+            moveHandle(e, touch.identifier);
+        });
+    }, {passive: false});
+
+    joystick.addEventListener('touchmove', (e) => {
+        Array.from(e.changedTouches).forEach(touch => {
+            moveHandle(e, touch.identifier);
+        });
+    }, {passive: false});
+
+    joystick.addEventListener('touchend', (e) => {
+        // Touch end logic if needed
+    });
+}
+
+function positionsChanged() {
+    return previousPositions.joystick1.x !== joystickPositions.joystick1.x ||
+           previousPositions.joystick1.y !== joystickPositions.joystick1.y ||
+           previousPositions.joystick2.x !== joystickPositions.joystick2.x ||
+           previousPositions.joystick2.y !== joystickPositions.joystick2.y;
+}
+
+function updatePreviousPositions() {
+    previousPositions = JSON.parse(JSON.stringify(joystickPositions));
+}
+
+function sendPositions() {
+    if (positionsChanged()) {
+        const { joystick1, joystick2 } = joystickPositions;
+        console.log(`Joystick 1 Position: X=${Math.round(joystick1.x)}, Y=${Math.round(joystick1.y)} | Joystick 2 Position: X=${Math.round(joystick2.x)}, Y=${Math.round(joystick2.y)}`);
+        fetch(`/position?x1=${Math.round(joystick1.x)}&y1=${Math.round(joystick1.y)}&x2=${Math.round(joystick2.x)}&y2=${Math.round(joystick2.y)}`)
+            .then(() => updatePreviousPositions())
+            .catch(console.error);
+    }
+}
+
+function startSendingPositions() {
+    if (updateInterval) clearInterval(updateInterval);
+    updateInterval = setInterval(sendPositions, 300); // Adjusted for faster updates but with change checks
+}
+
+// Initialize both joysticks and start the position sending mechanism
+initJoystick('joystick1');
+initJoystick('joystick2');
+startSendingPositions();
+</script>
+   
 </body>
 </html>
     """
@@ -180,3 +207,4 @@ while True:
         break
     except Exception as e:
         print("Error accepting connection: ", e)
+
