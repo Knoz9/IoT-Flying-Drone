@@ -1,10 +1,9 @@
-import socket
 import network
-import machine
 import time
+import socket
 
-# Setup for onboard LED
-led = machine.Pin(21, machine.Pin.OUT)
+# Setup for onboard LED for visual feedback
+led = machine.Pin(25, machine.Pin.OUT) # Adjust pin number if needed
 
 def blink_led(duration=0.1):
     """Toggle the LED to blink."""
@@ -12,16 +11,29 @@ def blink_led(duration=0.1):
     time.sleep(duration)  # Wait for the duration
     led.value(0)  # Turn LED off
 
-ap = network.WLAN(network.AP_IF)
-ap.config(essid='Pico-Drone', password='123456789')
-ap.active(True)
+# Initialize WiFi in station mode
+sta_if = network.WLAN(network.STA_IF)
 
+# Connect to your phone's WiFi network
+ssid = 'iPhone3'
+password = '123456789'
+
+if not sta_if.isconnected():
+    print('connecting to network...')
+    sta_if.active(True)
+    sta_if.connect(ssid, password)
+    while not sta_if.isconnected():
+        blink_led()  # Blink LED to indicate it's trying to connect
+        time.sleep(0.5)
+
+print('network config:', sta_if.ifconfig())
+
+# Create a socket and listen for connections
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind(('', 80))
 s.listen(5)
 
-print('Access Point Started')
-print('Network Name (SSID):', ap.config('essid'))
+print("Listening for connections...")
 
 def parse_query_params(query):
     """Parse query parameters from the URL."""
