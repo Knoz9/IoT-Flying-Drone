@@ -36,3 +36,4 @@
 | 07/02-2024 | Charbel | 2            | Implemented second joystick and fixed y value for the first one|
 | 07/02-2024 | Kenan & Charbel | 1            | Added multitouch support and combined both of the joysticks values to one single fetch request |
 | 07/02-2024 | Kenan & Charbel | 1            | Added some error handling |
+| 09/02-2024 | Kenan | 0.5            | Fixed wifi range issues by reversing the connection. |
