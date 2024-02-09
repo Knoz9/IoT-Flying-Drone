@@ -1,38 +1,50 @@
 import network
 import time
 import socket
+import machine
 
 # Setup for onboard LED for visual feedback
-led = machine.Pin(25, machine.Pin.OUT) # Adjust pin number if needed
+led = machine.Pin(25, machine.Pin.OUT)  # Adjust pin number if needed
 
-def blink_led(duration=0.1):
-    """Toggle the LED to blink."""
-    led.value(1)  # Turn LED on
-    time.sleep(duration)  # Wait for the duration
-    led.value(0)  # Turn LED off
+def blink_led(duration=0.1, count=1):
+    """Toggle the LED to blink a specified number of times."""
+    for _ in range(count):
+        led.value(1)  # LED on
+        time.sleep(duration)
+        led.value(0)  # LED off
+        time.sleep(duration)
 
 # Initialize WiFi in station mode
 sta_if = network.WLAN(network.STA_IF)
 
-# Connect to your phone's WiFi network
-ssid = 'iPhone3'
-password = '123456789'
-
-if not sta_if.isconnected():
-    print('connecting to network...')
+def connect_to_wifi(ssid, password, timeout=10):
+    """Attempts to connect to the WiFi network with a timeout."""
+    if sta_if.isconnected():
+        return  # Already connected
+    print('Connecting to network...')
     sta_if.active(True)
     sta_if.connect(ssid, password)
-    while not sta_if.isconnected():
-        blink_led()  # Blink LED to indicate it's trying to connect
-        time.sleep(0.5)
+    for _ in range(timeout):
+        if sta_if.isconnected():
+            print('WiFi connected successfully')
+            print('Network config:', sta_if.ifconfig())
+            blink_led(0.1, 3)  # Blink 3 times to indicate successful connection
+            return
+        blink_led(0.2)  # Slow blink to indicate retry
+        time.sleep(1)
+    print("Failed to connect to WiFi")
 
-print('network config:', sta_if.ifconfig())
+# Attempt to connect to the WiFi network
+connect_to_wifi('iPhone3', '123456789')
 
-# Create a socket and listen for connections
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind(('', 80))
-s.listen(5)
+# Setup socket for server
+def create_socket():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('', 80))
+    s.listen(5)
+    return s
 
+s = create_socket()
 print("Listening for connections...")
 
 def parse_query_params(query):
@@ -45,28 +57,35 @@ def parse_query_params(query):
     return params
 
 while True:
+    # Check and reconnect to WiFi if necessary
+    if not sta_if.isconnected():
+        print("WiFi connection lost, attempting to reconnect...")
+        connect_to_wifi('iPhone3', '123456789')  # Attempt to reconnect to WiFi
+        s.close()  # Close the existing socket
+        s = create_socket()  # Recreate the socket server
+        print("Resuming listening for connections...")
     try:
         conn, addr = s.accept()  # Accept incoming connection
-        try:
-            request = conn.recv(1024).decode('utf-8')  # Receive the request and decode it
-            if not request:  # Check if request is empty (connection closed)
-                raise ValueError("Empty request received, closing connection.")
-            request_line = request.split('\r\n')[0]  # Get the first line of the request
-            path, _, query = request_line.split(' ')[1].partition('?')
-            
-            if path == '/position':
-                params = parse_query_params(query)
-                x1 = params.get('x1', '0')
-                y1 = params.get('y1', '0')
-                x2 = params.get('x2', '0')
-                y2 = params.get('y2', '0')
-                blink_led()
-                print(f'Joystick 1 Position: X={x1}, Y={y1} | Joystick 2 Position: X={x2}, Y={y2}')
-            else:
-                print('Unknown Command')
+        print('Connection from:', addr)
+        request = conn.recv(1024).decode('utf-8')  # Receive the request and decode it
+        if not request:
+            raise ValueError("Empty request received, closing connection.")
+        request_line = request.split('\r\n')[0]
+        path, _, query = request_line.split(' ')[1].partition('?')
+        
+        if path == '/position':
+            params = parse_query_params(query)
+            x1 = params.get('x1', '0')
+            y1 = params.get('y1', '0')
+            x2 = params.get('x2', '0')
+            y2 = params.get('y2', '0')
+            blink_led()
+            print(f'Joystick 1 Position: X={x1}, Y={y1} | Joystick 2 Position: X={x2}, Y={y2}')
+        else:
+            print('Unknown Command')
 
-            # HTML with two independent joysticks
-            html = """<!DOCTYPE html>
+        # [Include your HTML content here]
+        html = """<!DOCTYPE html>
 <html>
 <head>
     <title>Pico Joystick Controller</title>
@@ -207,16 +226,11 @@ startSendingPositions();
    
 </body>
 </html>
-    """
-            response = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n" + html
-            conn.sendall(response.encode('utf-8'))  # Send the response
-        except Exception as e:
-            print("Error handling connection: ", e)
-        finally:
-            conn.close()  # Ensure connection is closed in case of error
-    except KeyboardInterrupt:
-        print("Server stopped manually")
-        break
+"""
+        response = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n" + html
+        conn.sendall(response.encode('utf-8'))  # Send the response
     except Exception as e:
-        print("Error accepting connection: ", e)
+        print("Error handling connection:", e)
+    finally:
+        conn.close()  # Ensure connection is closed
 
