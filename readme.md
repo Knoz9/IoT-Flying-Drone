@@ -38,3 +38,5 @@
 | 07/02-2024 | Kenan & Charbel | 1            | Added some error handling |
 | 09/02-2024 | Kenan | 0.5            | Fixed wifi range issues by reversing the connection. |
 | 09/02-2024 | Kenan | 0.5            | Added more reliability when connection is dropped |
+| 14/02-2024 | Charbel & Kenan | 4            | Building the drone. We assebmled motors and propellers. Still some cables missing but most of it complete |
+
